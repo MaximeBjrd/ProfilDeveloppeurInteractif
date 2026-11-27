@@ -576,7 +576,7 @@ fun ContactSection(developer: DeveloperUi, onContactClick: () -> Unit, modifier:
     }
 }
 
-@Preview(showBackground = true, name = "Profil - Light Theme", heightDp = 1100)
+@Preview(showBackground = true, name = "Profil - Light Theme (tous les projets, aucun favori)", heightDp = 1100)
 @Composable
 fun ProfileScreenLightPreview() {
     ProductExplorerTheme(darkTheme = false) {
@@ -595,19 +595,20 @@ fun ProfileScreenLightPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Profil - Dark Theme", heightDp = 1100)
+@Preview(showBackground = true, name = "Profil - Dark Theme (recherche, filtre favoris)", heightDp = 1100)
 @Composable
 fun ProfileScreenDarkPreview() {
+    val favoriteIds = listOf(1, 2)
     ProductExplorerTheme(darkTheme = true) {
         ProfileScreen(
             developer = sampleDeveloper(),
             skills = sampleSkills(),
-            projects = sampleProjects(),
-            searchQuery = "",
+            projects = sampleProjects().filter { project -> favoriteIds.contains(project.id) },
+            searchQuery = "compose",
             onSearchQueryChange = {},
-            showOnlyFavorites = false,
+            showOnlyFavorites = true,
             onToggleFavoriteFilter = {},
-            favoriteProjectIds = emptyList(),
+            favoriteProjectIds = favoriteIds,
             onFavoriteClick = {},
             onContactClick = {}
         )
