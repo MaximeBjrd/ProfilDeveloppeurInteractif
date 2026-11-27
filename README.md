@@ -1,89 +1,98 @@
-# Profil développeur – Amélioration UI
+# Profil développeur interactif
 
 ## Description
 
-Cette application Android affiche le profil d'un développeur (le mien : alternant en Architecture Logicielle) avec **Jetpack Compose** et **Material Design 3**.
+Cette application Android, écrite avec **Jetpack Compose** et **Material Design 3**, est un petit portfolio interactif : elle présente le profil d'un développeur (le mien : alternant en Architecture Logicielle) et ses projets.
 
-L'écran présente :
+Par rapport à la version précédente, l'utilisateur peut maintenant :
 
-- un en-tête avec un avatar (placeholder), un badge, le nom, le rôle et une courte description ;
-- une liste horizontale de compétences ;
-- une liste verticale de projets ;
-- une zone de contact (email, localisation, disponibilité) et un bouton « Contacter ».
+- **rechercher un projet** par titre, description ou technologie ;
+- **marquer un projet comme favori** (icône cœur sur chaque carte) ;
+- **afficher uniquement les projets favoris** (puce « Favoris uniquement ») ;
+- **voir le nombre de projets affichés** (« 1 projet affiché », « 3 projets affichés ») ;
+- **afficher ou masquer les informations de contact** (état local).
 
-Les données sont **locales** : elles sont écrites directement dans le code Kotlin (`sampleDeveloper()`, `sampleSkills()`, `sampleProjects()`). L'application n'utilise ni API, ni ViewModel, ni navigation, ni stockage.
+La liste et le compteur se mettent à jour automatiquement à chaque action. Les données restent **locales** : elles sont écrites dans le code Kotlin (`sampleDeveloper()`, `sampleSkills()`, `sampleProjects()`). L'application n'utilise ni API distante, ni Room, ni Navigation, ni persistance.
 
-Le clic sur « Contacter » appelle un callback (`onContactClick`) qui ne contient qu'un commentaire : l'action sera ajoutée plus tard.
+## États gérés par l'application
 
-Tout le code de l'interface se trouve dans `MainActivity.kt`. Le thème est dans `ui/theme/` (`Theme.kt`, `Type.kt`, `Color.kt`).
+| État | Type | Géré par | Rôle |
+|---|---|---|---|
+| `searchQuery` | `String` | `ProfileViewModel` | Texte saisi dans le champ de recherche |
+| `showOnlyFavorites` | `Boolean` | `ProfileViewModel` | Filtre « favoris uniquement » activé ou non |
+| `favoriteProjectIds` | `List<Int>` | `ProfileViewModel` | Identifiants des projets favoris |
+| `projects` | `List<ProjectUi>` | `ProfileViewModel` | Liste affichée, filtrée par la recherche et par le filtre favoris |
+| `showContactInfo` | `Boolean` | `ContactSection` (état local) | Informations de contact affichées ou masquées |
 
-## Composants Compose utilisés
+Les quatre premiers sont regroupés dans une seule classe, `ProfileUiState`. Le nombre de projets affiché est calculé à partir de `projects.size`.
 
-| Composant | Utilisation |
+## État local
+
+> Quel état avez-vous conservé directement dans un composable et pourquoi ?
+
+J'ai gardé `showContactInfo` directement dans le composable `ContactSection`, avec `rememberSaveable { mutableStateOf(false) }`.
+
+C'est un état purement visuel : il décide seulement si les informations de contact sont visibles. Aucun autre élément de l'écran n'en dépend, et il n'influence ni la recherche, ni les favoris, ni la liste. Il n'a donc pas besoin d'être dans le `ViewModel`. J'ai utilisé `rememberSaveable` plutôt que `remember` pour que l'affichage soit conservé quand l'écran est recréé, par exemple lors d'une rotation.
+
+## State Hoisting
+
+> Pourquoi votre composable d'écran principal peut-il être considéré comme stateless ?
+
+`ProfileScreen` ne stocke aucun état principal : il ne contient ni `remember`, ni `mutableStateOf`, ni référence au `ViewModel`. Il reçoit tout ce qu'il affiche sous forme de **paramètres** (`projects`, `searchQuery`, `showOnlyFavorites`, `favoriteProjectIds`…) et il signale les actions de l'utilisateur avec des **callbacks** (`onSearchQueryChange`, `onToggleFavoriteFilter`, `onFavoriteClick`, `onContactClick`).
+
+Il ne décide donc pas comment l'état est stocké : les valeurs viennent du `ViewModel` via `ProfileContainer`. C'est aussi ce qui permet d'utiliser `ProfileScreen` directement dans les previews, sans `ViewModel`.
+
+## ViewModel
+
+> Quel est le rôle de votre ViewModel dans cette application ?
+
+`ProfileViewModel` gère l'état principal de l'écran et les actions qui le modifient :
+
+- il garde la liste complète des projets (`allProjects`) et l'état de l'écran (`ProfileUiState`) ;
+- il calcule la liste affichée avec `filterProjects()`, selon la recherche et le filtre favoris ;
+- il expose trois actions : `onSearchQueryChange`, `onToggleFavoriteFilter` et `onFavoriteClick`.
+
+Il ne dépend d'aucun composant Compose. Quand un favori est ajouté ou retiré, il recalcule aussi la liste affichée : en mode « favoris uniquement », un projet retiré des favoris disparaît donc immédiatement de la liste.
+
+## StateFlow
+
+> Comment l'interface est-elle informée lorsqu'un état change ?
+
+Le `ViewModel` contient un `MutableStateFlow<ProfileUiState>` privé (`_uiState`) qu'il est le seul à modifier. Il expose une version en lecture seule, `uiState: StateFlow<ProfileUiState>`, que l'interface peut seulement observer.
+
+Quand l'utilisateur agit (il tape dans la recherche, clique sur un cœur…), l'écran appelle un callback, qui appelle une fonction du `ViewModel`. Celle-ci crée un nouvel état avec `_uiState.update { it.copy(...) }`. Le `StateFlow` publie alors ce nouvel état.
+
+Dans `ProfileContainer`, `collectAsState()` observe le `StateFlow` et le transforme en état Compose. À chaque nouvelle valeur, Compose recompose les composables concernés, et l'écran affiche la nouvelle liste, le nouveau compteur et les favoris à jour.
+
+```
+Action utilisateur → callback → ProfileViewModel (update) → StateFlow publie
+→ collectAsState() dans ProfileContainer → ProfileScreen recomposé
+```
+
+## Organisation du code
+
+Tout le code est dans `MainActivity.kt` ; le thème est dans `ui/theme/`.
+
+| Élément | Rôle |
 |---|---|
-| `Text` | Nom, rôle, description, titres de sections, informations des projets |
-| `Button` | Bouton « Contacter » (`ContactButton`) |
-| `Icon` | Icônes email, localisation et disponibilité dans les champs de contact |
-| `Image` | Avatar placeholder (`AvatarWithBadge`) |
-| `Card` | Carte de chaque projet (`ProjectCard`) |
-| `OutlinedTextField` (lecture seule) | Champs de contact : email, localisation, disponibilité (`ContactField`) |
-| `Surface` | En-tête, section contact, avatar, badge et compétences (`SkillChip`) |
-| `Scaffold` | Structure de l'écran et gestion de `innerPadding` |
-
-## Layouts utilisés
-
-- **`Column`** : organise verticalement l'en-tête, les sections et le contenu des cartes.
-- **`Row`** : aligne l'avatar et le nom/rôle sur une même ligne (`ProfileHeader`).
-- **`Box`** : superpose le badge sur l'avatar, avec `Modifier.align(Alignment.BottomEnd)` (`AvatarWithBadge`).
-- **`Spacer`** : gère les espaces entre les éléments.
-- **`Surface`** : crée des zones visuelles cohérentes avec le thème (formes, couleurs, élévation).
-- **`LazyColumn`** et **`LazyRow`** : listes, détaillées ci-dessous.
-
-## Listes affichées avec LazyColumn et LazyRow
-
-### `LazyColumn` : écran principal et liste de projets
-
-`ProfileScreen` est une `LazyColumn` unique qui assemble toutes les sections :
-
-1. `item { ProfileHeader(...) }` : l'en-tête ;
-2. `item { SkillsSection(...) }` : les compétences ;
-3. `item { Text("Projets") }` : le titre de la section ;
-4. `items(items = projects, key = { project -> project.id })` : un `ProjectCard` par projet ;
-5. `item { ContactSection(...) }` : le contact.
-
-`item` ajoute un élément unique, `items` parcourt une collection. Chaque projet est affiché par le composable réutilisable `ProjectCard`, qui ne connaît qu'un seul projet. Le paramètre `key` (l'`id` du projet) donne une identité stable à chaque élément de la liste.
-
-### `LazyRow` : liste de compétences
-
-`SkillsSection` affiche les compétences dans une `LazyRow` avec `items(items = skills, key = { skill -> skill.id })`. Chaque compétence est affichée par le composable réutilisable `SkillChip`. L'espacement entre les éléments est géré par `Arrangement.spacedBy(8.dp)`.
-
-## Choix de thème (Material Design 3)
-
-Le thème `ProductExplorerTheme` (`ui/theme/Theme.kt`) centralise l'apparence : les composants utilisent `MaterialTheme.colorScheme`, `MaterialTheme.typography` et `MaterialTheme.shapes` au lieu de couleurs ou tailles écrites en dur.
-
-- **Couleurs (`ColorScheme`)** : une palette verte, avec une version claire (`LightColorScheme`) et une version sombre (`DarkColorScheme`). Elles définissent les rôles `primary`, `secondary`, `background`, `surface`, `onPrimary`, `onBackground` et `onSurface`. Le vert donne une identité sobre, et les couleurs `on...` garantissent un texte lisible sur chaque fond.
-- **Clair / sombre** : `isSystemInDarkTheme()` choisit automatiquement la palette. La couleur dynamique (Material You) est désactivée pour que l'application garde sa propre palette sur Android 12+. Deux previews permettent de comparer les rendus.
-- **Typographie (`ProductTypography`)** : cinq styles personnalisés pour la hiérarchie du texte, du plus important au moins important : `headlineMedium` (28 sp, gras) pour le nom, `titleLarge` (20 sp) pour les titres de sections et de projets, `titleMedium` (16 sp) pour le rôle, `bodyMedium` (14 sp) pour les descriptions, `labelLarge` (14 sp) pour les compétences et les technologies.
-- **Formes (`ProductShapes`)** : des coins arrondis de 8, 16, 24 et 32 dp. `shapes.large` est utilisé pour les cartes et les zones, `shapes.extraLarge` pour les compétences en forme de pastille.
-- **Mise en valeur** : `primary` met en avant le nom et les titres de sections, `secondary` les technologies des projets.
+| `ProfileUiState` | Classe de données qui représente l'état complet de l'écran |
+| `ProfileViewModel` | Gère l'état avec un `StateFlow` et fournit les actions (recherche, filtre, favoris) |
+| `ProfileContainer` | Récupère le `ViewModel`, collecte le `StateFlow` et connecte l'état et les callbacks à l'écran |
+| `ProfileScreen` | Écran stateless : assemble les sections dans une `LazyColumn` |
+| `ProfileHeader`, `AvatarWithBadge` | En-tête avec avatar, badge, nom, rôle et description |
+| `SkillsSection`, `SkillChip` | Compétences dans une `LazyRow` |
+| `ProjectCard` | Carte d'un projet avec le bouton favori |
+| `ContactSection`, `ContactField`, `ContactButton` | Zone de contact avec son état local et le bouton « Contacter » |
+| `projectCountLabel()` | Texte du compteur, avec le singulier ou le pluriel |
+| `MainActivity` | Point d'entrée : applique le thème et affiche `ProfileContainer` |
 
 ## Previews
 
-Deux previews sont disponibles dans `MainActivity.kt` :
+Deux previews utilisent directement `ProfileScreen`, sans `ViewModel`, avec des états différents :
 
-- `ProfileScreenLightPreview` : thème clair ;
-- `ProfileScreenDarkPreview` : thème sombre.
+- `ProfileScreenLightPreview` : thème clair, recherche vide, tous les projets, aucun favori ;
+- `ProfileScreenDarkPreview` : thème sombre, recherche « compose », filtre favoris activé, deux projets favoris.
 
 ## Capture d'écran
 
-![Capture d'écran de l'application](screenshots/Screen_previews.png)
-## Quelles notions du chapitre Compose UI avez-vous réutilisées dans cette application ?
-
-J'ai réutilisé les notions des TP 4 à 7 :
-
-- **Composants fondamentaux** : `Text`, `Button`, `Icon`, `Image`, `Card` et `OutlinedTextField` en lecture seule, comme pour la garantie dans l'écran de détail produit.
-- **Layouts** : `Column`, `Row`, `Box` (avatar et badge), `Spacer` et `Surface`, comme dans l'écran d'accueil.
-- **Listes modernes** : `LazyColumn` avec `item` / `items` et `key`, et `LazyRow` pour les compétences, comme dans le catalogue de produits.
-- **Composants réutilisables** : `SkillChip`, `ProjectCard` et `ContactField` reçoivent leurs données en paramètres et acceptent un `modifier: Modifier = Modifier`. Le parent décide du placement, et les callbacks signalent les clics.
-- **Material Design 3** : `ColorScheme`, `Typography`, `Shapes`, thème clair et sombre, comme pour la personnalisation graphique.
-- **Previews** : une preview claire et une preview sombre pour vérifier le rendu dans les deux thèmes.
+![Capture d'écran de l'application](screenshots/Screen_interactif.png)
