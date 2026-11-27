@@ -26,6 +26,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -230,6 +232,8 @@ fun ProfileContainer(
         projects = uiState.projects,
         searchQuery = uiState.searchQuery,
         onSearchQueryChange = viewModel::onSearchQueryChange,
+        favoriteProjectIds = uiState.favoriteProjectIds,
+        onFavoriteClick = viewModel::onFavoriteClick,
         onContactClick = onContactClick,
         modifier = modifier
     )
@@ -242,6 +246,8 @@ fun ProfileScreen(
     projects: List<ProjectUi>,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
+    favoriteProjectIds: List<Int>,
+    onFavoriteClick: (Int) -> Unit,
     onContactClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -295,7 +301,11 @@ fun ProfileScreen(
                 items = projects,
                 key = { project -> project.id }
             ) { project ->
-                ProjectCard(project = project)
+                ProjectCard(
+                    project = project,
+                    isFavorite = favoriteProjectIds.contains(project.id),
+                    onFavoriteClick = { onFavoriteClick(project.id) }
+                )
             }
         }
         item {
@@ -395,33 +405,55 @@ fun SkillsSection(skills: List<SkillUi>, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun ProjectCard(project: ProjectUi, modifier: Modifier = Modifier) {
+fun ProjectCard(
+    project: ProjectUi,
+    isFavorite: Boolean,
+    onFavoriteClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = project.title,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+        Row(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = project.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
 
-            Text(
-                text = project.description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = project.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = project.technologies,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.secondary
-            )
+                Text(
+                    text = project.technologies,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+            IconButton(onClick = onFavoriteClick) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (isFavorite) {
+                        "Retirer ${project.title} des favoris"
+                    } else {
+                        "Ajouter ${project.title} aux favoris"
+                    },
+                    tint = if (isFavorite) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+            }
         }
     }
 }
@@ -499,6 +531,8 @@ fun ProfileScreenLightPreview() {
             projects = sampleProjects(),
             searchQuery = "",
             onSearchQueryChange = {},
+            favoriteProjectIds = emptyList(),
+            onFavoriteClick = {},
             onContactClick = {}
         )
     }
@@ -514,6 +548,8 @@ fun ProfileScreenDarkPreview() {
             projects = sampleProjects(),
             searchQuery = "",
             onSearchQueryChange = {},
+            favoriteProjectIds = emptyList(),
+            onFavoriteClick = {},
             onContactClick = {}
         )
     }
