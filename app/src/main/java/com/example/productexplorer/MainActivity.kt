@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -232,6 +233,8 @@ fun ProfileContainer(
         projects = uiState.projects,
         searchQuery = uiState.searchQuery,
         onSearchQueryChange = viewModel::onSearchQueryChange,
+        showOnlyFavorites = uiState.showOnlyFavorites,
+        onToggleFavoriteFilter = viewModel::onToggleFavoriteFilter,
         favoriteProjectIds = uiState.favoriteProjectIds,
         onFavoriteClick = viewModel::onFavoriteClick,
         onContactClick = onContactClick,
@@ -246,6 +249,8 @@ fun ProfileScreen(
     projects: List<ProjectUi>,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
+    showOnlyFavorites: Boolean,
+    onToggleFavoriteFilter: () -> Unit,
     favoriteProjectIds: List<Int>,
     onFavoriteClick: (Int) -> Unit,
     onContactClick: () -> Unit,
@@ -289,6 +294,29 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxWidth()
             )
         }
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = projectCountLabel(projects.size),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                FilterChip(
+                    selected = showOnlyFavorites,
+                    onClick = onToggleFavoriteFilter,
+                    label = { Text(text = "Favoris uniquement") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = if (showOnlyFavorites) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = null
+                        )
+                    }
+                )
+            }
+        }
         if (projects.isEmpty()) {
             item {
                 Text(
@@ -312,6 +340,10 @@ fun ProfileScreen(
             ContactSection(developer = developer, onContactClick = onContactClick)
         }
     }
+}
+
+fun projectCountLabel(count: Int): String {
+    return if (count <= 1) "$count projet affiché" else "$count projets affichés"
 }
 
 @Composable
@@ -521,7 +553,7 @@ fun ContactSection(developer: DeveloperUi, onContactClick: () -> Unit, modifier:
     }
 }
 
-@Preview(showBackground = true, name = "Profil - Light Theme", heightDp = 1100)
+@Preview(showBackground = true, name = "Profil - Light Theme", heightDp = 1250)
 @Composable
 fun ProfileScreenLightPreview() {
     ProductExplorerTheme(darkTheme = false) {
@@ -531,6 +563,8 @@ fun ProfileScreenLightPreview() {
             projects = sampleProjects(),
             searchQuery = "",
             onSearchQueryChange = {},
+            showOnlyFavorites = false,
+            onToggleFavoriteFilter = {},
             favoriteProjectIds = emptyList(),
             onFavoriteClick = {},
             onContactClick = {}
@@ -538,7 +572,7 @@ fun ProfileScreenLightPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Profil - Dark Theme", heightDp = 1100)
+@Preview(showBackground = true, name = "Profil - Dark Theme", heightDp = 1250)
 @Composable
 fun ProfileScreenDarkPreview() {
     ProductExplorerTheme(darkTheme = true) {
@@ -548,6 +582,8 @@ fun ProfileScreenDarkPreview() {
             projects = sampleProjects(),
             searchQuery = "",
             onSearchQueryChange = {},
+            showOnlyFavorites = false,
+            onToggleFavoriteFilter = {},
             favoriteProjectIds = emptyList(),
             onFavoriteClick = {},
             onContactClick = {}
