@@ -36,13 +36,21 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.productexplorer.ui.theme.ProductExplorerTheme
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,10 +59,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             ProductExplorerTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    ProfileScreen(
-                        developer = sampleDeveloper(),
-                        skills = sampleSkills(),
-                        projects = sampleProjects(),
+                    ProfileContainer(
                         onContactClick = {
                             // Plus tard : contacter le développeur
                         },
@@ -128,6 +133,100 @@ fun sampleProjects(): List<ProjectUi> {
             description = "Application web développée en alternance.",
             technologies = "Java, Angular, Git"
         )
+    )
+}
+
+data class ProfileUiState(
+    val projects: List<ProjectUi> = emptyList(),
+    val searchQuery: String = "",
+    val showOnlyFavorites: Boolean = false,
+    val favoriteProjectIds: List<Int> = emptyList()
+)
+
+class ProfileViewModel : ViewModel() {
+    private val allProjects: List<ProjectUi> = sampleProjects()
+
+    private val _uiState = MutableStateFlow(ProfileUiState(projects = allProjects))
+    val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
+    private fun filterProjects(
+        searchQuery: String,
+        showOnlyFavorites: Boolean,
+        favoriteProjectIds: List<Int>
+    ): List<ProjectUi> {
+        return allProjects.filter { project ->
+            val matchesSearch =
+                project.title.contains(searchQuery, ignoreCase = true)
+                        || project.description.contains(searchQuery, ignoreCase = true)
+                        || project.technologies.contains(searchQuery, ignoreCase = true)
+            val matchesFavorite = !showOnlyFavorites || favoriteProjectIds.contains(project.id)
+            matchesSearch && matchesFavorite
+        }
+    }
+
+    fun onSearchQueryChange(newValue: String) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                searchQuery = newValue,
+                projects = filterProjects(
+                    searchQuery = newValue,
+                    showOnlyFavorites = currentState.showOnlyFavorites,
+                    favoriteProjectIds = currentState.favoriteProjectIds
+                )
+            )
+        }
+    }
+
+    fun onToggleFavoriteFilter() {
+        _uiState.update { currentState ->
+            val newShowOnlyFavorites = !currentState.showOnlyFavorites
+
+            currentState.copy(
+                showOnlyFavorites = newShowOnlyFavorites,
+                projects = filterProjects(
+                    searchQuery = currentState.searchQuery,
+                    showOnlyFavorites = newShowOnlyFavorites,
+                    favoriteProjectIds = currentState.favoriteProjectIds
+                )
+            )
+        }
+    }
+
+    fun onFavoriteClick(projectId: Int) {
+        _uiState.update { currentState ->
+            val newFavoriteIds =
+                if (currentState.favoriteProjectIds.contains(projectId)) {
+                    currentState.favoriteProjectIds - projectId
+                } else {
+                    currentState.favoriteProjectIds + projectId
+                }
+
+            currentState.copy(
+                favoriteProjectIds = newFavoriteIds,
+                projects = filterProjects(
+                    searchQuery = currentState.searchQuery,
+                    showOnlyFavorites = currentState.showOnlyFavorites,
+                    favoriteProjectIds = newFavoriteIds
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun ProfileContainer(
+    onContactClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: ProfileViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    ProfileScreen(
+        developer = sampleDeveloper(),
+        skills = sampleSkills(),
+        projects = uiState.projects,
+        onContactClick = onContactClick,
+        modifier = modifier
     )
 }
 
