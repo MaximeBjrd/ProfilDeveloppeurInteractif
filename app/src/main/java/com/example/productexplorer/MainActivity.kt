@@ -24,12 +24,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -225,6 +228,8 @@ fun ProfileContainer(
         developer = sampleDeveloper(),
         skills = sampleSkills(),
         projects = uiState.projects,
+        searchQuery = uiState.searchQuery,
+        onSearchQueryChange = viewModel::onSearchQueryChange,
         onContactClick = onContactClick,
         modifier = modifier
     )
@@ -235,6 +240,8 @@ fun ProfileScreen(
     developer: DeveloperUi,
     skills: List<SkillUi>,
     projects: List<ProjectUi>,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     onContactClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -256,11 +263,40 @@ fun ProfileScreen(
                 color = MaterialTheme.colorScheme.primary
             )
         }
-        items(
-            items = projects,
-            key = { project -> project.id }
-        ) { project ->
-            ProjectCard(project = project)
+        item {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                label = { Text(text = "Rechercher un projet") },
+                leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { onSearchQueryChange("") }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Effacer la recherche"
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        if (projects.isEmpty()) {
+            item {
+                Text(
+                    text = "Aucun projet ne correspond à votre recherche.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        } else {
+            items(
+                items = projects,
+                key = { project -> project.id }
+            ) { project ->
+                ProjectCard(project = project)
+            }
         }
         item {
             ContactSection(developer = developer, onContactClick = onContactClick)
@@ -461,6 +497,8 @@ fun ProfileScreenLightPreview() {
             developer = sampleDeveloper(),
             skills = sampleSkills(),
             projects = sampleProjects(),
+            searchQuery = "",
+            onSearchQueryChange = {},
             onContactClick = {}
         )
     }
@@ -474,6 +512,8 @@ fun ProfileScreenDarkPreview() {
             developer = sampleDeveloper(),
             skills = sampleSkills(),
             projects = sampleProjects(),
+            searchQuery = "",
+            onSearchQueryChange = {},
             onContactClick = {}
         )
     }
