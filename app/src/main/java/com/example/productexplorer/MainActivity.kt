@@ -37,6 +37,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -44,6 +45,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -511,6 +515,8 @@ fun ContactButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 fun ContactSection(developer: DeveloperUi, onContactClick: () -> Unit, modifier: Modifier = Modifier) {
+    var showContactInfo by rememberSaveable { mutableStateOf(false) }
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
@@ -524,25 +530,42 @@ fun ContactSection(developer: DeveloperUi, onContactClick: () -> Unit, modifier:
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            ContactField(
-                label = "Email",
-                value = developer.email,
-                icon = Icons.Default.Email
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { showContactInfo = !showContactInfo },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (showContactInfo) {
+                        "Masquer les informations de contact"
+                    } else {
+                        "Afficher les informations de contact"
+                    }
+                )
+            }
 
-            ContactField(
-                label = "Localisation",
-                value = developer.location,
-                icon = Icons.Default.LocationOn
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            if (showContactInfo) {
+                Spacer(modifier = Modifier.height(12.dp))
 
-            ContactField(
-                label = "Disponibilité",
-                value = developer.availability,
-                icon = Icons.Default.CheckCircle
-            )
+                ContactField(
+                    label = "Email",
+                    value = developer.email,
+                    icon = Icons.Default.Email
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                ContactField(
+                    label = "Localisation",
+                    value = developer.location,
+                    icon = Icons.Default.LocationOn
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                ContactField(
+                    label = "Disponibilité",
+                    value = developer.availability,
+                    icon = Icons.Default.CheckCircle
+                )
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
             ContactButton(
@@ -553,7 +576,7 @@ fun ContactSection(developer: DeveloperUi, onContactClick: () -> Unit, modifier:
     }
 }
 
-@Preview(showBackground = true, name = "Profil - Light Theme", heightDp = 1250)
+@Preview(showBackground = true, name = "Profil - Light Theme", heightDp = 1100)
 @Composable
 fun ProfileScreenLightPreview() {
     ProductExplorerTheme(darkTheme = false) {
@@ -572,7 +595,7 @@ fun ProfileScreenLightPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Profil - Dark Theme", heightDp = 1250)
+@Preview(showBackground = true, name = "Profil - Dark Theme", heightDp = 1100)
 @Composable
 fun ProfileScreenDarkPreview() {
     ProductExplorerTheme(darkTheme = true) {
